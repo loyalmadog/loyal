@@ -10,16 +10,16 @@ $timestamp  = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 "=====================================" | Add-Content -Path $reportPath
 "" | Add-Content -Path $reportPath
 
-# ============================================================
-# SECTION 1 : HISTORIQUE COMPLET (PowerShell + CMD)
-# ============================================================
+
+
+
 Write-Host "[*] Récupération de l'historique complet des commandes..." -ForegroundColor Yellow
 "[HISTORIQUE COMPLET DES COMMANDES]" | Add-Content -Path $reportPath
 "------------------------------------" | Add-Content -Path $reportPath
 
 $AllCmds = @()
 
-# -- PowerShell : Event ID 4104 (ScriptBlock logging)
+
 $PsEvents = Get-WinEvent -FilterHashtable @{
     LogName = 'Microsoft-Windows-PowerShell/Operational'
     Id      = 4104
@@ -27,7 +27,7 @@ $PsEvents = Get-WinEvent -FilterHashtable @{
 
 foreach ($ev in $PsEvents) {
     $text = ($ev.Properties[2].Value -replace "`r`n|`r|`n", " ").Trim()
-    # Ignore les blocs vides ou très courts
+    
     if ($text.Length -lt 5) { continue }
     if ($text -eq '$global:?') { continue }
     $preview = if ($text.Length -gt 300) { $text.Substring(0, 300) + "..." } else { $text }
@@ -38,17 +38,17 @@ foreach ($ev in $PsEvents) {
     }
 }
 
-# -- CMD / Process Creation : Event ID 4688 (Security log, nécessite audit activé)
+
 $CmdEvents = Get-WinEvent -FilterHashtable @{
     LogName = 'Security'
     Id      = 4688
 } -MaxEvents 1000 -ErrorAction SilentlyContinue
 
 foreach ($ev in $CmdEvents) {
-    $proc    = $ev.Properties[5].Value  # New Process Name
-    $cmdLine = $ev.Properties[8].Value  # Process Command Line
+    $proc    = $ev.Properties[5].Value  
+    $cmdLine = $ev.Properties[8].Value  
     if (-not $cmdLine -or $cmdLine.Length -lt 3) { continue }
-    # Filtrer les process non-interactifs bruyants
+    
     if ($proc -match 'svchost|csrss|wininit|smss|lsass|RuntimeBroker|SearchHost') { continue }
     $AllCmds += [PSCustomObject]@{
         Date    = $ev.TimeCreated
@@ -57,7 +57,7 @@ foreach ($ev in $CmdEvents) {
     }
 }
 
-# -- Trier par date croissante
+
 $AllCmds = $AllCmds | Sort-Object Date
 
 Write-Host "[+] $($AllCmds.Count) commandes récupérées." -ForegroundColor Green
@@ -74,9 +74,9 @@ foreach ($cmd in $AllCmds) {
 
 "" | Add-Content -Path $reportPath
 
-# ============================================================
-# SECTION 2 : DETECTION FILELESS
-# ============================================================
+
+
+
 Write-Host ""
 Write-Host "[*] Analyse fileless en cours..." -ForegroundColor Yellow
 "" | Add-Content -Path $reportPath
@@ -117,7 +117,7 @@ $Whitelist = @(
 $SuspiciousCount = 0
 $Seen = @{}
 
-# On scanne TOUTES les commandes (PowerShell ET Cmd/Processus)
+
 foreach ($cmd in $AllCmds) {
     $text = $cmd.Command
     if (-not $text -or $text.Length -lt 5) { continue }
@@ -167,9 +167,9 @@ if ($SuspiciousCount -eq 0) {
     Add-Content -Path $reportPath -Value "`n[!] $SuspiciousCount commandes fileless suspectes trouvées."
 }
 
-# ============================================================
-# SECTION 3 : RAM OPTIONNEL
-# ============================================================
+
+
+
 Write-Host ""
 Write-Host "Do you want to analyze RAM to detect PE injection / shellcode? (Y/N): " -NoNewline -ForegroundColor Cyan
 $analyzeRam = Read-Host

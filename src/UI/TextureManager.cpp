@@ -39,14 +39,14 @@ namespace UI {
             return it->second ? it->second : s_DefaultIcon;
         }
 
-        // Si non trouvé, on extrait
+        
         int wlen = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, NULL, 0);
         std::wstring wpath(wlen, 0);
         MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], wlen);
 
         SHFILEINFOW sfi = {0};
-        // USEFILEATTRIBUTES pour obtenir l'icône même si le fichier n'existe pas forcément sur le moment
-        // Mais comme on veut l'icône de l'exe spécifique, on n'utilise pas USEFILEATTRIBUTES.
+        
+        
         if (SHGetFileInfoW(wpath.c_str(), 0, &sfi, sizeof(sfi), SHGFI_ICON | SHGFI_SMALLICON)) {
             if (sfi.hIcon) {
                 ID3D11ShaderResourceView* srv = LoadIconFromHICON(sfi.hIcon);
@@ -58,14 +58,14 @@ namespace UI {
             }
         }
 
-        // En cas d'échec
+        
         s_Cache[path] = nullptr;
         return s_DefaultIcon;
     }
 
     ID3D11ShaderResourceView* TextureManager::LoadDefaultIcon() {
         SHFILEINFOW sfi = {0};
-        // On récupère l'icône générique pour un fichier .exe
+        
         if (SHGetFileInfoW(L".exe", FILE_ATTRIBUTE_NORMAL, &sfi, sizeof(sfi), SHGFI_ICON | SHGFI_SMALLICON | SHGFI_USEFILEATTRIBUTES)) {
             if (sfi.hIcon) {
                 ID3D11ShaderResourceView* srv = LoadIconFromHICON(sfi.hIcon);
@@ -91,11 +91,11 @@ namespace UI {
         DeleteObject(ii.hbmColor);
         DeleteObject(ii.hbmMask);
 
-        // Dessiner l'icône dans un DIB 32 bits RGBA
+        
         BITMAPINFO bmi = {0};
         bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
         bmi.bmiHeader.biWidth = width;
-        bmi.bmiHeader.biHeight = -height; // Top-down
+        bmi.bmiHeader.biHeight = -height; 
         bmi.bmiHeader.biPlanes = 1;
         bmi.bmiHeader.biBitCount = 32;
         bmi.bmiHeader.biCompression = BI_RGB;
@@ -114,29 +114,29 @@ namespace UI {
 
         HBITMAP hbmOld = (HBITMAP)SelectObject(hdcMem, hbmDib);
         
-        // Effacer le fond (transparent)
+        
         memset(pBits, 0, width * height * 4);
 
-        // Dessiner l'icône
+        
         DrawIconEx(hdcMem, 0, 0, hIcon, width, height, 0, NULL, DI_NORMAL);
         
         SelectObject(hdcMem, hbmOld);
         
-        // Convertir BGRA (format DIB) en RGBA pour D3D11
+        
         std::vector<unsigned char> rgba(width * height * 4);
         unsigned char* bgra = (unsigned char*)pBits;
         for (int i = 0; i < width * height; ++i) {
-            rgba[i * 4 + 0] = bgra[i * 4 + 2]; // R
-            rgba[i * 4 + 1] = bgra[i * 4 + 1]; // G
-            rgba[i * 4 + 2] = bgra[i * 4 + 0]; // B
-            rgba[i * 4 + 3] = bgra[i * 4 + 3]; // A
+            rgba[i * 4 + 0] = bgra[i * 4 + 2]; 
+            rgba[i * 4 + 1] = bgra[i * 4 + 1]; 
+            rgba[i * 4 + 2] = bgra[i * 4 + 0]; 
+            rgba[i * 4 + 3] = bgra[i * 4 + 3]; 
         }
 
         DeleteObject(hbmDib);
         DeleteDC(hdcMem);
         ReleaseDC(NULL, hdcScreen);
 
-        // Créer la texture D3D11
+        
         D3D11_TEXTURE2D_DESC desc = {0};
         desc.Width = width;
         desc.Height = height;

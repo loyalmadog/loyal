@@ -8,7 +8,7 @@ namespace Parsers {
         std::string  SID;
         std::string  ExecutablePath;
         std::string  ExecutionTime;
-        ULONGLONG    Timestamp = 0; // Pour le tri (valeur brute du FILETIME)
+        ULONGLONG    Timestamp = 0; 
         bool         IsSigned  = false;
         bool         IsRunning = false;
     };

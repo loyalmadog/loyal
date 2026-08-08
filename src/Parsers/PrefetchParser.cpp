@@ -10,21 +10,21 @@
 #include <cstdint>
 #pragma comment(lib, "wintrust.lib")
 
-// ============================================================
-// Helpers pour charger RtlDecompressBufferEx depuis ntdll.dll
-// (Les .pf Windows 10/11 sont compressés en XPRESS_HUFF)
-// ============================================================
+
+
+
+
 typedef NTSTATUS (WINAPI* RtlGetCompressionWorkSpaceSize_t)(USHORT, PULONG, PULONG);
 typedef NTSTATUS (WINAPI* RtlDecompressBufferEx_t)(USHORT, PUCHAR, ULONG, PUCHAR, ULONG, PULONG, PVOID);
 
-static const USHORT COMPRESS_ALGORITHM_XPRESS_HUFF = 0x0004 | 0x8000; // XPRESS with Huffman
+static const USHORT COMPRESS_ALGORITHM_XPRESS_HUFF = 0x0004 | 0x8000; 
 static const USHORT COMPRESS_ALGORITHM_XPRESS      = 0x0004;
 
 namespace Parsers {
 
-// ============================================================
-// Convertit un FILETIME en string lisible et retourne le timestamp brut
-// ============================================================
+
+
+
 static std::string FiletimeToString(uint64_t ft, uint64_t& outTimestamp) {
     outTimestamp = ft;
     if (ft == 0) return "Never";
@@ -46,15 +46,15 @@ static std::string FiletimeToString(uint64_t ft, uint64_t& outTimestamp) {
     return std::string(buf);
 }
 
-// Surcharge sans outTimestamp
+
 static std::string FiletimeToString(uint64_t ft) {
     uint64_t dummy;
     return FiletimeToString(ft, dummy);
 }
 
-// ============================================================
-// Formate une taille en octets -> "xx.xx KB"
-// ============================================================
+
+
+
 static std::string FormatSize(uint64_t bytes) {
     char buf[64];
     if (bytes < 1024) sprintf_s(buf, "%llu B", bytes);
@@ -63,9 +63,9 @@ static std::string FormatSize(uint64_t bytes) {
     return std::string(buf);
 }
 
-// ============================================================
-// Récupère taille + dates création/modification d'un fichier
-// ============================================================
+
+
+
 static void GetFileMetadata(const std::string& path, std::string& outSize, std::string& outCreated, std::string& outModified) {
     outSize = outCreated = outModified = "N/A";
     if (path.empty()) return;
@@ -83,17 +83,17 @@ static void GetFileMetadata(const std::string& path, std::string& outSize, std::
     outModified = FiletimeToString(modified);
 }
 
-// ============================================================
-// Tente de décompresser un fichier .pf Windows 10/11
-// Retourne le buffer décompressé ou vide en cas d'échec
-// ============================================================
+
+
+
+
 static std::vector<uint8_t> TryDecompress(const std::vector<uint8_t>& raw) {
     if (raw.size() < 8) return {};
 
-    // Signature MAM = fichier compressé Win10
+    
     uint32_t sig = *(uint32_t*)raw.data();
     if (sig != 0x044D414D) {
-        // Pas compressé, retourner tel quel
+        
         return raw;
     }
 
@@ -108,7 +108,7 @@ static std::vector<uint8_t> TryDecompress(const std::vector<uint8_t>& raw) {
     if (!pGetWS || !pDecompr) return {};
 
     ULONG wsSize = 0, fragSize = 0;
-    // Essaie XPRESS Huffman d'abord (Win10), puis XPRESS
+    
     USHORT algo = COMPRESS_ALGORITHM_XPRESS_HUFF;
     NTSTATUS status = pGetWS(algo, &wsSize, &fragSize);
     if (status != 0) {
@@ -134,35 +134,35 @@ static std::vector<uint8_t> TryDecompress(const std::vector<uint8_t>& raw) {
     return output;
 }
 
-// ============================================================
-// Parse un fichier .pf décompressé et rempli une PrefetchEntry
-// ============================================================
+
+
+
 static bool ParsePFBuffer(const std::vector<uint8_t>& buf, const std::string& pfPath, PrefetchEntry& out) {
     if (buf.size() < 0xD0 + 4) return false;
 
     uint32_t version   = *(uint32_t*)(buf.data() + 0x00);
     uint32_t signature = *(uint32_t*)(buf.data() + 0x04);
 
-    // Signature SCCA = 0x41434353
+    
     if (signature != 0x41434353) return false;
-    // Versions supportées: 17 (XP), 23 (Win7), 26 (Win8), 30 (Win10), 31 (Win11)
+    
     if (version != 17 && version != 23 && version != 26 && version != 30 && version != 31) return false;
 
-    // --- Nom de l'exécutable (offset 0x10, 60 octets, UTF-16LE) ---
+    
     const wchar_t* rawName = (const wchar_t*)(buf.data() + 0x10);
-    // 60 octets = 30 wchar_t
+    
     std::wstring wname(rawName, 30);
-    // Tronquer au premier \0
+    
     size_t nullPos = wname.find(L'\0');
     if (nullPos != std::wstring::npos) wname.resize(nullPos);
 
-    // Conversion en UTF-8
+    
     char mbName[256] = {};
     WideCharToMultiByte(CP_UTF8, 0, wname.c_str(), -1, mbName, sizeof(mbName), nullptr, nullptr);
     out.ExecutableName = mbName;
     out.PrefetchFile   = pfPath;
 
-    // --- Historique d'exécution (jusqu'à 8 timestamps pour Win8/10/11) ---
+    
     if (version == 17) {
         uint64_t ts = *(uint64_t*)(buf.data() + 0x78);
         out.LastRunTime = FiletimeToString(ts, out.LastRunTimestamp);
@@ -172,7 +172,7 @@ static bool ParsePFBuffer(const std::vector<uint8_t>& buf, const std::string& pf
         out.LastRunTime = FiletimeToString(ts, out.LastRunTimestamp);
         if (ts) out.RunHistory.push_back(out.LastRunTime);
     } else {
-        // Win8 (26), Win10 (30), Win11 (31) : jusqu'à 8 timestamps
+        
         size_t tsOffset = 0x80;
         for (int i = 0; i < 8; ++i) {
             if (tsOffset + 8 > buf.size()) break;
@@ -193,12 +193,12 @@ static bool ParsePFBuffer(const std::vector<uint8_t>& buf, const std::string& pf
     return true;
 }
 
-// ============================================================
-// Recherche un exe par son nom dans les chemins système communs
-// Retourne le chemin complet ou "" si introuvable
-// ============================================================
+
+
+
+
 static std::string ResolveExecutable(const std::string& exeName) {
-    // 1. SearchPath cherche dans PATH + dossiers système
+    
     wchar_t wideName[MAX_PATH] = {};
     MultiByteToWideChar(CP_UTF8, 0, exeName.c_str(), -1, wideName, MAX_PATH);
 
@@ -209,7 +209,7 @@ static std::string ResolveExecutable(const std::string& exeName) {
         return std::string(mb);
     }
 
-    // 2. Recherche manuelle dans les chemins courants
+    
     const char* extraDirs[] = {
         "C:\\Program Files\\",
         "C:\\Program Files (x86)\\",
@@ -225,9 +225,9 @@ static std::string ResolveExecutable(const std::string& exeName) {
     return "";
 }
 
-// ============================================================
-// Vérifie si un exe est signé numériquement via WinTrust
-// ============================================================
+
+
+
 static bool IsExecutableSigned(const std::string& path) {
     if (path.empty()) return false;
 
@@ -255,9 +255,9 @@ static bool IsExecutableSigned(const std::string& path) {
     return (result == ERROR_SUCCESS);
 }
 
-// ============================================================
-// Point d'entrée principal
-// ============================================================
+
+
+
 std::vector<PrefetchEntry> PrefetchParser::Parse() {
     std::vector<PrefetchEntry> results;
 
@@ -273,7 +273,7 @@ std::vector<PrefetchEntry> PrefetchParser::Parse() {
 
         std::string fullPath = std::string(pfDir) + ffd.cFileName;
 
-        // Lecture brute du fichier
+        
         HANDLE hFile = CreateFileA(fullPath.c_str(), GENERIC_READ,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             nullptr, OPEN_EXISTING, 0, nullptr);
@@ -291,22 +291,22 @@ std::vector<PrefetchEntry> PrefetchParser::Parse() {
         CloseHandle(hFile);
         if (!ok || bytesRead == 0) continue;
 
-        // Décompression si nécessaire
+        
         auto buf = TryDecompress(rawBuf);
         if (buf.empty()) continue;
 
-        // Parse
+        
         PrefetchEntry entry;
         if (ParsePFBuffer(buf, fullPath, entry)) {
-            // Résolution du chemin et vérification signature
+            
             entry.ResolvedPath = ResolveExecutable(entry.ExecutableName);
             entry.ExistsOnDisk = !entry.ResolvedPath.empty();
             entry.IsSigned     = entry.ExistsOnDisk ? IsExecutableSigned(entry.ResolvedPath) : false;
 
-            // Métadonnées du .pf
+            
             GetFileMetadata(fullPath, entry.PfSize, entry.PfCreated, entry.PfModified);
 
-            // Métadonnées de l'exe
+            
             if (entry.ExistsOnDisk)
                 GetFileMetadata(entry.ResolvedPath, entry.ExeSize, entry.ExeCreated, entry.ExeModified);
 
@@ -319,4 +319,4 @@ std::vector<PrefetchEntry> PrefetchParser::Parse() {
     return results;
 }
 
-} // namespace Parsers
+} 

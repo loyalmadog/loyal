@@ -8,9 +8,9 @@ namespace Parsers {
 struct USBEntry {
     std::string FriendlyName;
     std::string Manufacturer;
-    std::string DeviceDesc;       // vendor class name
+    std::string DeviceDesc;       
     std::string SerialNumber;
-    std::string DeviceClass;      // VID_xxxx&PID_xxxx key name
+    std::string DeviceClass;      
     std::string VID;
     std::string PID;
     std::string Capabilities;
@@ -28,4 +28,4 @@ public:
     static std::vector<USBEntry> Parse();
 };
 
-} // namespace Parsers
+} 

@@ -10,11 +10,11 @@ namespace Registry {
         RegistryKey() = default;
         ~RegistryKey();
 
-        // Prevent copying
+        
         RegistryKey(const RegistryKey&) = delete;
         RegistryKey& operator=(const RegistryKey&) = delete;
 
-        // Allow moving
+        
         RegistryKey(RegistryKey&& other) noexcept;
         RegistryKey& operator=(RegistryKey&& other) noexcept;
 

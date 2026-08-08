@@ -7,12 +7,12 @@ namespace Parsers {
     struct ServiceEntry {
         std::string Name;
         std::string DisplayName;
-        std::string Status; // "Running", "Stopped", etc.
+        std::string Status; 
     };
 
     class ServicesParser {
     public:
-        // Parse the status of the hardcoded forensic-relevant services
+        
         static std::vector<ServiceEntry> Parse();
     };
 

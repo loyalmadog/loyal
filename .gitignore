@@ -16,3 +16,4 @@ Makefile
 *.vcxproj.user
 *.filters
 .idea/
+CMakeSettings.json

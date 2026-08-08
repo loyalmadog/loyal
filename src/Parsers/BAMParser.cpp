@@ -14,14 +14,14 @@
 
 namespace Parsers {
 
-    // Vérifie si le nom du sujet d'un certificat contient "Microsoft"
+    
     static bool IsMicrosoftCert(PCCERT_CONTEXT pCert) {
         char subjectName[512] = {};
         CertGetNameStringA(pCert, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, subjectName, sizeof(subjectName));
         return std::string(subjectName).find("Microsoft") != std::string::npos;
     }
 
-    // Vérifie si le signataire d'un message cryptographique est Microsoft
+    
     static bool CheckMsgSigner(HCRYPTMSG hMsg, HCERTSTORE hStore) {
         DWORD dwSignerCount = 0, dwLen = sizeof(dwSignerCount);
         if (!CryptMsgGetParam(hMsg, CMSG_SIGNER_COUNT_PARAM, 0, &dwSignerCount, &dwLen) || dwSignerCount == 0)
@@ -43,10 +43,10 @@ namespace Parsers {
         return result;
     }
 
-    // Vérifie si un fichier est signé par Microsoft.
-    // WinVerifyTrust gère automatiquement les signatures embarquées ET les catalogues Windows.
+    
+    
     static bool IsMicrosoftSigned(const std::wstring& filePath) {
-        // Étape 1 : WinVerifyTrust pour valider la signature (embarquée ou catalogue)
+        
         WINTRUST_FILE_INFO fileInfo = {};
         fileInfo.cbStruct    = sizeof(WINTRUST_FILE_INFO);
         fileInfo.pcwszFilePath = filePath.c_str();
@@ -58,7 +58,7 @@ namespace Parsers {
         trustData.dwUnionChoice       = WTD_CHOICE_FILE;
         trustData.pFile               = &fileInfo;
         trustData.dwStateAction       = WTD_STATEACTION_VERIFY;
-        // Permettre la vérification via catalogue aussi
+        
         trustData.dwProvFlags         = WTD_CACHE_ONLY_URL_RETRIEVAL;
         LONG trustResult = WinVerifyTrust(NULL, &actionGuid, &trustData);
         trustData.dwStateAction = WTD_STATEACTION_CLOSE;
@@ -66,7 +66,7 @@ namespace Parsers {
 
         if (trustResult != ERROR_SUCCESS) return false;
 
-        // Étape 2 : récupérer le certificat embarqué pour lire le nom du signataire
+        
         HCERTSTORE hStore = nullptr;
         HCRYPTMSG  hMsg   = nullptr;
         DWORD dwEncoding = 0, dwContentType = 0, dwFormatType = 0;
@@ -78,8 +78,8 @@ namespace Parsers {
             &hStore, &hMsg, nullptr);
 
         if (!ok) {
-            // Pas de signature embarquée, mais WinVerifyTrust a réussi = signé via catalogue.
-            // Les catalogues Windows sont toujours signés par Microsoft.
+            
+            
             return true;
         }
 
@@ -89,7 +89,7 @@ namespace Parsers {
         return result;
     }
 
-    // Convertit un chemin NT (\Device\HarddiskVolume3\...) en chemin DOS (C:\...)
+    
     static std::wstring ResolveNtPathToDosPath(const std::wstring& ntPath) {
         wchar_t driveStr[] = L"A:";
         wchar_t devicePath[MAX_PATH];
@@ -98,7 +98,7 @@ namespace Parsers {
             driveStr[0] = drive;
             if (QueryDosDeviceW(driveStr, devicePath, MAX_PATH)) {
                 std::wstring dev(devicePath);
-                // Si le ntPath commence par ce device
+                
                 if (ntPath.find(dev) == 0) {
                     std::wstring result = driveStr;
                     result += ntPath.substr(dev.length());
@@ -106,24 +106,24 @@ namespace Parsers {
                 }
             }
         }
-        return ntPath; // Retourne le chemin d'origine si on n'a pas trouvé
+        return ntPath; 
     }
 
-    // Retourne le FILETIME correspondant au dernier démarrage de Windows
+    
     static FILETIME GetWindowsBootTime() {
-        // Uptime en millisecondes
+        
         ULONGLONG uptimeMs = GetTickCount64();
 
-        // Temps actuel en FILETIME
+        
         FILETIME nowFt;
         GetSystemTimeAsFileTime(&nowFt);
 
-        // Conversion en ULARGE_INTEGER pour faire l'arithmétique
+        
         ULARGE_INTEGER now;
         now.LowPart  = nowFt.dwLowDateTime;
         now.HighPart = nowFt.dwHighDateTime;
 
-        // Soustrait l'uptime (en unités de 100ns = ms * 10000)
+        
         now.QuadPart -= (uptimeMs * 10000ULL);
 
         FILETIME bootFt;
@@ -141,7 +141,7 @@ namespace Parsers {
             return entries;
         }
 
-        // Récupère le boot time une seule fois pour toute la liste
+        
         FILETIME bootTime = GetWindowsBootTime();
 
         auto subkeys = bamRoot.EnumerateSubKeys();
@@ -163,14 +163,14 @@ namespace Parsers {
                 BAMEntry entry;
                 entry.SID            = Utils::WStringToString(subkey.Name);
                 
-                // Convertit \Device\HarddiskVolume... en C:\...
+                
                 std::wstring dosPath = ResolveNtPathToDosPath(valName);
                 
-                // Filtre strict : on ne garde que C:\ (insensible à la casse)
+                
                 std::wstring pathLower = dosPath;
                 for (auto& c : pathLower) c = towlower(c);
                 if (pathLower.find(L"c:\\") != 0) {
-                    continue; // Ignore si ça ne commence pas par C:
+                    continue; 
                 }
 
                 entry.ExecutablePath = Utils::WStringToString(dosPath);
@@ -182,11 +182,11 @@ namespace Parsers {
                 entryTime.HighPart = ft.dwHighDateTime;
                 entry.Timestamp = entryTime.QuadPart;
 
-                // Vérification de signature Microsoft uniquement
+                
                 entry.IsSigned = IsMicrosoftSigned(dosPath);
 
-                // IsRunning = exécuté après le dernier boot
-                // Compare le FILETIME de l'entrée avec le boot time
+                
+                
                 ULARGE_INTEGER boot;
                 boot.LowPart       = bootTime.dwLowDateTime;
                 boot.HighPart      = bootTime.dwHighDateTime;

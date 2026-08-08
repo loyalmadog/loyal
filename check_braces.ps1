@@ -14,7 +14,7 @@ foreach($line in ($content -split "`n")) {
             elseif ($c -eq '}') { $depth-- }
         }
     }
-    # Show depth transitions (when depth changes and key structural lines)
+    
     if ($lineNum -ge 295 -and $lineNum -le 320) {
         $trim = $line.Trim()
         if ($trim.Length -gt 60) { $trim = $trim.Substring(0,60) }

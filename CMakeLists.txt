@@ -81,6 +81,13 @@ add_custom_command(TARGET SSTool POST_BUILD
     COMMENT "Copie de fileless.ps1 dans le dossier de sortie..."
 )
 
+add_custom_command(TARGET SSTool POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/usn_check.ps1"
+        "$<TARGET_FILE_DIR:SSTool>/usn_check.ps1"
+    COMMENT "Copie de usn_check.ps1 dans le dossier de sortie..."
+)
+
 
 # Touch for CMake re-run
 # Force UAC update

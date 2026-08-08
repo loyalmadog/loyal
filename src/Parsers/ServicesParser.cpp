@@ -8,7 +8,7 @@ namespace Parsers {
     std::vector<ServiceEntry> ServicesParser::Parse() {
         std::vector<ServiceEntry> entries;
 
-        // Liste des services demandés par l'utilisateur
+        
         std::vector<std::string> targetServices = {
             "DPS", "EventLog", "SysMain", "AppInfo", "PcaSvc", 
             "DusmSvc", "BAM", "DiagTrack", "Schedule", "SearchIndexer"
@@ -23,14 +23,14 @@ namespace Parsers {
         for (const auto& svcName : targetServices) {
             ServiceEntry entry;
             entry.Name = svcName;
-            entry.DisplayName = svcName; // Par défaut, au cas où
+            entry.DisplayName = svcName; 
             entry.Status = "Unknown";
 
             std::wstring wSvcName = Utils::StringToWString(svcName);
             SC_HANDLE hService = OpenServiceW(hSCManager, wSvcName.c_str(), SERVICE_QUERY_STATUS | SERVICE_QUERY_CONFIG);
             
             if (hService) {
-                // Récupération du statut
+                
                 SERVICE_STATUS_PROCESS ssStatus;
                 DWORD bytesNeeded;
                 if (QueryServiceStatusEx(hService, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssStatus, sizeof(SERVICE_STATUS_PROCESS), &bytesNeeded)) {
@@ -46,9 +46,9 @@ namespace Parsers {
                     }
                 }
 
-                // Récupération du Display Name
+                
                 DWORD cbBufSize = 0;
-                QueryServiceConfigW(hService, NULL, 0, &cbBufSize); // Va retourner FALSE et ERROR_INSUFFICIENT_BUFFER
+                QueryServiceConfigW(hService, NULL, 0, &cbBufSize); 
                 if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
                     LPQUERY_SERVICE_CONFIGW pSvcConfig = (LPQUERY_SERVICE_CONFIGW)LocalAlloc(LMEM_FIXED, cbBufSize);
                     if (pSvcConfig) {

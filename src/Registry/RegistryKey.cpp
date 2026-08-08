@@ -47,7 +47,7 @@ namespace Registry {
         status = RegQueryValueExW(m_hKey, valueName.c_str(), nullptr, &type, reinterpret_cast<LPBYTE>(&result[0]), &dataSize);
         
         if (status == ERROR_SUCCESS) {
-            // Remove null terminator if present in the string length
+            
             if (!result.empty() && result.back() == L'\0') {
                 result.pop_back();
             }
@@ -110,7 +110,7 @@ namespace Registry {
             } else if (status == ERROR_NO_MORE_ITEMS) {
                 break;
             } else {
-                // Handle error if needed
+                
                 break;
             }
         }

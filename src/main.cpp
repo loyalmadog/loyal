@@ -24,7 +24,7 @@
 #include <urlmon.h>
 #pragma comment(lib, "urlmon.lib")
 
-// Data
+
 static ID3D11Device*            g_pd3dDevice = nullptr;
 static ID3D11DeviceContext*     g_pd3dDeviceContext = nullptr;
 static IDXGISwapChain*          g_pSwapChain = nullptr;
@@ -36,7 +36,7 @@ void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-// Global for window dragging
+
 static bool g_IsDragging = false;
 static POINT g_DragOffset;
 
@@ -46,7 +46,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     spdlog::set_default_logger(logger);
     spdlog::info("SS Tool démarre.");
 
-    // Création de la fenêtre Win32 sans bordure (WS_POPUP)
+    
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, hInstance, nullptr, nullptr, nullptr, nullptr, L"SSTool Class", nullptr };
     ::RegisterClassExW(&wc);
     
@@ -72,7 +72,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     
-    // Charger la police Inter (dans fonts/ à côté de l'exe)
+    
     ImFontConfig font_cfg;
     const char* fontPath = "fonts/Inter-Regular.ttf";
     FILE* f = fopen(fontPath, "rb");
@@ -80,7 +80,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         fclose(f);
         io.Fonts->AddFontFromFileTTF(fontPath, 15.0f, &font_cfg);
     }
-    // Fallback propre si la police n'est pas trouvée (pas d'assert)
+    
     if (io.Fonts->Fonts.empty()) {
         font_cfg.SizePixels = 15.0f;
         io.Fonts->AddFontDefault(&font_cfg);
@@ -107,7 +107,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     bool usbLoaded = false;
     std::atomic<bool> isParsingUSB(false);
     const Parsers::USBEntry* selectedUSBEntry = nullptr;
-    int usbFilter = 0; // 0=All, 1=Connected, 2=Disconnected
+    int usbFilter = 0; 
 
     std::vector<Parsers::PrefetchEntry> prefetchEntries;
     bool prefetchLoaded = false;
@@ -118,9 +118,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     std::atomic<bool> isDownloading(false);
     std::string downloadingToolName = "";
 
-    int current_nav = 0; // 0 = BAM Parser, 1 = Prefetch, 2 = Process, 3 = Services, 4 = Other
+    int current_nav = 0; 
 
-    // Filtres BAM
+    
     static char bam_search[256] = "";
     bool bam_loaded = false;
 
@@ -141,25 +141,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        // Fenêtre ImGui qui prend tout l'écran
+        
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(io.DisplaySize);
         ImGui::Begin("MainViewport", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
 
-        // ==== CUSTOM TITLE BAR ====
-        // Zone draggable (toute la titlebar SAUF le bouton X)
+        
+        
         float titlebarH = 40.0f;
         float btnW = 36.0f;
         ImVec2 winPos = ImGui::GetWindowPos();
 
-        // Dessin du fond titlebar
+        
         ImGui::GetWindowDrawList()->AddRectFilled(
             winPos,
             ImVec2(winPos.x + io.DisplaySize.x, winPos.y + titlebarH),
             ImGui::GetColorU32(ImVec4(0.07f, 0.07f, 0.07f, 1.0f))
         );
 
-        // Texte SSTool + made by Loyal
+        
         ImGui::GetWindowDrawList()->AddText(
             ImVec2(winPos.x + 15.0f, winPos.y + 12.0f),
             ImGui::GetColorU32(ImVec4(0.65f, 0.35f, 1.0f, 1.0f)), "SSTool");
@@ -167,7 +167,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             ImVec2(winPos.x + 72.0f, winPos.y + 12.0f),
             ImGui::GetColorU32(ImVec4(0.38f, 0.38f, 0.38f, 1.0f)), "made by Loyal");
 
-        // Zone draggable
+        
         ImGui::SetCursorPos(ImVec2(0, 0));
         ImGui::InvisibleButton("TitleBarDrag", ImVec2(io.DisplaySize.x - btnW, titlebarH));
         if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
@@ -186,7 +186,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             g_IsDragging = false;
         }
 
-        // Bouton X en haut à droite, bien cadré au centre verticalement
+        
         float closeBtnSize = 24.0f;
         ImVec2 btnPos = ImVec2(winPos.x + io.DisplaySize.x - closeBtnSize - 12.0f, winPos.y + (titlebarH - closeBtnSize) / 2.0f);
         ImGui::SetCursorPos(ImVec2(io.DisplaySize.x - closeBtnSize - 12.0f, (titlebarH - closeBtnSize) / 2.0f));
@@ -201,16 +201,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         
         ImGui::GetWindowDrawList()->AddRectFilled(btnPos, ImVec2(btnPos.x + closeBtnSize, btnPos.y + closeBtnSize), btnColor, 4.0f);
         
-        // Dessin de la croix (pixel perfect)
+        
         float crossSize = 10.0f;
         ImVec2 center = ImVec2(btnPos.x + closeBtnSize / 2.0f, btnPos.y + closeBtnSize / 2.0f);
         ImU32 crossColor = ImGui::GetColorU32(ImVec4(0.8f, 0.8f, 0.8f, 1.0f));
         
-        // Ligne 1: Haut-Gauche -> Bas-Droite
+        
         ImGui::GetWindowDrawList()->AddLine(
             ImVec2(center.x - crossSize/2, center.y - crossSize/2), 
             ImVec2(center.x + crossSize/2, center.y + crossSize/2), crossColor, 1.5f);
-        // Ligne 2: Haut-Droite -> Bas-Gauche
+        
         ImGui::GetWindowDrawList()->AddLine(
             ImVec2(center.x + crossSize/2, center.y - crossSize/2), 
             ImVec2(center.x - crossSize/2, center.y + crossSize/2), crossColor, 1.5f);
@@ -219,14 +219,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             done = true;
         }
 
-        // Ligne de séparation
+        
         ImGui::GetWindowDrawList()->AddLine(
             ImVec2(winPos.x, winPos.y + titlebarH),
             ImVec2(winPos.x + io.DisplaySize.x, winPos.y + titlebarH),
             ImGui::GetColorU32(ImVec4(0.14f, 0.14f, 0.14f, 1.0f))
         );
 
-        // ==== NAV BAR ====
+        
         ImGui::SetCursorPos(ImVec2(10.0f, titlebarH + 2.0f));
         if (UI::DrawNavTab("Tools",    current_nav == 0)) current_nav = 0;
         ImGui::SameLine(0, 0);
@@ -234,9 +234,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         ImGui::SameLine(0, 0);
         if (UI::DrawNavTab("Other",    current_nav == 4)) current_nav = 4;
         
-        // Bouton Boot Time à droite
+        
         ImGui::SameLine(io.DisplaySize.x - 145.0f);
-        ImGui::SetCursorPosY(titlebarH + 10.0f); // Mieux centré verticalement
+        ImGui::SetCursorPosY(titlebarH + 10.0f); 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.12f, 0.12f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.18f, 0.55f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.65f, 0.35f, 1.00f, 1.0f));
@@ -247,7 +247,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         ImGui::PopStyleVar();
         ImGui::PopStyleColor(3);
 
-        // Ligne sous la navbar
+        
         float navBottom = titlebarH + 44.0f;
         ImGui::GetWindowDrawList()->AddLine(
             ImVec2(winPos.x, winPos.y + navBottom),
@@ -255,18 +255,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             ImGui::GetColorU32(ImVec4(0.14f, 0.14f, 0.14f, 1.0f))
         );
 
-        // ==== CONTENU ====
-        static int tools_sub = 0; // 0 = none, 1 = BAM, 2 = Prefetch
+        
+        static int tools_sub = 0; 
         ImGui::SetCursorPos(ImVec2(0, navBottom + 1.0f));
 
-        if (current_nav == 0) // TOOLS
+        if (current_nav == 0) 
         {
-            // --- Cartes de sélection de tool ---
+            
             float btnAreaY = navBottom + 12.0f;
             ImGui::SetCursorPos(ImVec2(12.0f, btnAreaY));
 
-            float availWidth = io.DisplaySize.x - 24.0f; // 12px de marge de chaque côté
-            int columns = 4;
+            float availWidth = io.DisplaySize.x - 24.0f; 
+            int columns = 5;
             float spacing = 10.0f;
             float cardWidth = (availWidth - (spacing * (columns - 1))) / columns;
 
@@ -295,24 +295,33 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 ImGui::SetTooltip("Affiche tous les peripheriques USB branches,\navec date premiere connexion, derniere connexion,\net derniere deconnexion");
             }
 
-            // Ligne de séparation
-            float toolbarBottom = btnAreaY + 132.0f; // 120 (hauteur carte) + marge
+            ImGui::SameLine(0, spacing);
+
+            if (UI::DrawToolCard("USN Journal", "Check USN Journal\nIntegrity", cardWidth)) {
+                ShellExecuteA(NULL, "open", "cmd.exe", "/c powershell.exe -ExecutionPolicy Bypass -File usn_check.ps1", NULL, SW_SHOWNORMAL);
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Verify if the USN Journal ($UsnJrnl:$J)\nhas been deleted and recreated after boot");
+            }
+
+            
+            float toolbarBottom = btnAreaY + 132.0f; 
             ImGui::GetWindowDrawList()->AddLine(
                 ImVec2(winPos.x, winPos.y + toolbarBottom),
                 ImVec2(winPos.x + io.DisplaySize.x, winPos.y + toolbarBottom),
                 ImGui::GetColorU32(ImVec4(0.14f, 0.14f, 0.14f, 1.0f))
             );
             if (tools_sub == 0) {
-                // Rien sélectionné
+                
                 float cy = toolbarBottom + (io.DisplaySize.y - toolbarBottom) / 2.0f - 10.0f;
                 float cx = io.DisplaySize.x / 2.0f - 120.0f;
                 ImGui::SetCursorPos(ImVec2(cx, cy));
                 ImGui::TextDisabled("Select a tool above to get started.");
             }
-            else if (tools_sub == 1) // BAM PARSER
+            else if (tools_sub == 1) 
             {
 
-                // --- Barre d'options ---
+                
                 ImGui::SetCursorPos(ImVec2(12.0f, toolbarBottom + 8.0f));
 
                 ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.20f, 0.12f, 0.32f, 1.0f));
@@ -445,9 +454,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                                 }
                                 ImGui::EndTabBar();
                             }
-                            ImGui::Dummy(ImVec2(0, 10)); ImGui::Separator(); ImGui::Dummy(ImVec2(0, 6));
+                            ImGui::Dummy(ImVec2(0, 4)); ImGui::Separator(); ImGui::Dummy(ImVec2(0, 4));
                             float bw = 100.0f;
-                            ImGui::SetCursorPosX((ImGui::GetWindowWidth() - bw) * 0.5f);
+                            ImGui::SetCursorPosX(210.0f);
+                            ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 8.0f);
                             ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.20f, 0.12f, 0.32f, 1.0f));
                             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.18f, 0.55f, 1.0f));
                             ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.65f, 0.35f, 1.00f, 1.0f));
@@ -462,10 +472,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             
             
             }
-            else if (tools_sub == 2) // PREFETCH
+            else if (tools_sub == 2) 
             {
 
-                // --- Barre d'options ---
+                
                 ImGui::SetCursorPos(ImVec2(12.0f, toolbarBottom + 8.0f));
 
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.12f, 0.32f, 1.0f));
@@ -489,11 +499,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
             ImGui::SameLine(0, 20.0f);
 
-            // Filtres
+            
             static bool pf_filter_in_instance = false;
             static bool pf_filter_not_found = false;
 
-            // In Instance Only (orange)
+            
             ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.9f, 0.6f, 0.2f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.15f, 0.12f, 0.08f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.25f, 0.18f, 0.12f, 1.0f));
@@ -504,7 +514,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
             ImGui::SameLine(0, 20.0f);
 
-            // Show Not Found (gris)
+            
             ImGui::PushStyleColor(ImGuiCol_CheckMark, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.12f, 0.12f, 0.12f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.20f, 0.20f, 0.20f, 1.0f));
@@ -513,13 +523,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Show only entries where the executable could not be located on disk");
 
-            // Barre de recherche à droite
+            
             float search_w = 280.0f;
             ImGui::SameLine(io.DisplaySize.x - search_w - 12.0f);
             ImGui::SetNextItemWidth(search_w);
             ImGui::InputTextWithHint("##pfsearch", "Search...", prefetch_search, sizeof(prefetch_search));
 
-            // Séparateur
+            
             float tableTop = toolbarBottom + 46.0f;
                 ImGui::GetWindowDrawList()->AddLine(
                     ImVec2(winPos.x, winPos.y + tableTop),
@@ -527,11 +537,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                     ImGui::GetColorU32(ImVec4(0.14f, 0.14f, 0.14f, 1.0f))
                 );
 
-            // Stocke les filtres actifs pour la boucle en dessous
+            
             bool pf_show_in_instance_only = pf_filter_in_instance;
             bool pf_show_not_found_only = pf_filter_not_found;
 
-            // Calcul du boot time pour le filtre
+            
             uint64_t bootTimestamp = 0;
             if (pf_show_in_instance_only) {
                 ULONGLONG uptimeMs = GetTickCount64();
@@ -540,7 +550,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 bootTimestamp = now.QuadPart - (uptimeMs * 10000ULL);
             }
 
-            // --- Tableau ---
+            
             ImGui::SetCursorPos(ImVec2(0, tableTop + 2.0f));
             float tableH = io.DisplaySize.y - tableTop - 2.0f;
 
@@ -566,7 +576,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                     ImGui::TableSetupColumn("Executable",     ImGuiTableColumnFlags_WidthStretch, 0.0f, 1);
                     ImGui::TableHeadersRow();
 
-                    // Tri
+                    
                     if (ImGuiTableSortSpecs* specs = ImGui::TableGetSortSpecs()) {
                         if (specs->SpecsDirty) {
                             std::sort(prefetchEntries.begin(), prefetchEntries.end(),
@@ -590,7 +600,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                                          entry.LastRunTime.find(searchStr)    != std::string::npos;
                             if (!match) continue;
                         }
-                        // Filtres
+                        
                         if (pf_show_in_instance_only && entry.LastRunTimestamp < bootTimestamp) continue;
                         if (pf_show_not_found_only && entry.ExistsOnDisk) continue;
 
@@ -600,7 +610,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
                         ImGui::TableSetColumnIndex(1);
 
-                        // Selectable cliquable sur toute la ligne
+                        
                         std::string selId = entry.ExecutableName + "##pf" + std::to_string(ei);
                         bool selected = (selectedPrefetchEntry == &entry);
 
@@ -625,7 +635,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                         ImGui::OpenPopup("PrefetchDetailPopup");
                     }
 
-                    // --- Popup Details ---
+                    
                     ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.10f, 0.10f, 0.10f, 1.0f));
                     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
                     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20.0f, 16.0f));
@@ -634,14 +644,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                         if (selectedPrefetchEntry) {
                             const auto& e = *selectedPrefetchEntry;
 
-                            // Titre
+                            
                             ImGui::TextColored(ImVec4(0.65f, 0.35f, 1.0f, 1.0f), e.ExecutableName.c_str());
                             ImGui::Separator();
                             ImGui::Dummy(ImVec2(0, 4));
 
                             if (ImGui::BeginTabBar("PrefetchDetailTabs")) {
 
-                                // --- Onglet Details ---
+                                
                                 if (ImGui::BeginTabItem("Details")) {
                                     ImGui::Dummy(ImVec2(0, 6));
 
@@ -665,7 +675,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                                     ImGui::EndTabItem();
                                 }
 
-                                // --- Onglet Execution History ---
+                                
                                 if (ImGui::BeginTabItem("Execution History")) {
                                     ImGui::Dummy(ImVec2(0, 6));
                                     if (e.RunHistory.empty()) {
@@ -681,11 +691,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                                 ImGui::EndTabBar();
                             }
 
-                            ImGui::Dummy(ImVec2(0, 10));
+                            ImGui::Dummy(ImVec2(0, 4));
                             ImGui::Separator();
-                            ImGui::Dummy(ImVec2(0, 6));
+                            ImGui::Dummy(ImVec2(0, 4));
                             float btnW = 100.0f;
-                            ImGui::SetCursorPosX((ImGui::GetWindowWidth() - btnW) * 0.5f);
+                            ImGui::SetCursorPosX(210.0f);
+                            ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 8.0f);
                             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.12f, 0.32f, 1.0f));
                             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.18f, 0.55f, 1.0f));
                             ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.65f, 0.35f, 1.00f, 1.0f));
@@ -704,7 +715,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             
             
             }
-            else if (tools_sub == 3) // USB HISTORY
+            else if (tools_sub == 3) 
             {
 
                 ImGui::SetCursorPos(ImVec2(12.0f, toolbarBottom + 8.0f));
@@ -727,7 +738,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 }
                 ImGui::PopStyleColor(3);
 
-                // --- Boutons filtre All / Connected / Disconnected ---
+                
                 ImGui::SameLine(0, 14);
                 ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f);
                 {
@@ -748,7 +759,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 }
                 ImGui::PopStyleVar();
 
-                // Compteur
+                
                 if (usbLoaded && !usbEntries.empty()) {
                     int cnt = 0;
                     for (auto& e : usbEntries) {
@@ -797,7 +808,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                         ImGui::TableSetupColumn("Connected",      ImGuiTableColumnFlags_WidthFixed,                               80.0f, 6);
                         ImGui::TableHeadersRow();
 
-                        // Tri
+                        
                         if (ImGuiTableSortSpecs* specs = ImGui::TableGetSortSpecs()) {
                             if (specs->SpecsDirty) {
                                 std::sort(usbEntries.begin(), usbEntries.end(),
@@ -819,12 +830,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
                         for (size_t ui = 0; ui < usbEntries.size(); ++ui) {
                             const auto& e = usbEntries[ui];
-                            // Apply filter
+                            
                             if (usbFilter == 1 && !e.IsConnected) continue;
                             if (usbFilter == 2 && e.IsConnected)  continue;
                             ImGui::TableNextRow();
 
-                            // Col 0: Device Name
+                            
                             ImGui::TableSetColumnIndex(0);
                             std::string selId = (e.FriendlyName.empty() ? e.DeviceClass : e.FriendlyName) + "##usb" + std::to_string(ui);
                             bool selected = (selectedUSBEntry == &e);
@@ -833,11 +844,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                                 openUSBPopup = true;
                             }
 
-                            // Col 1: Vendor Name
+                            
                             ImGui::TableSetColumnIndex(1);
                             ImGui::TextUnformatted(e.DeviceDesc.empty() ? e.Manufacturer.c_str() : e.DeviceDesc.c_str());
 
-                            // Col 2: VID/PID
+                            
                             ImGui::TableSetColumnIndex(2);
                             if (!e.VID.empty() || !e.PID.empty()) {
                                 char vidpid[32];
@@ -847,19 +858,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                                 ImGui::TextDisabled("-");
                             }
 
-                            // Col 3: Last Connect
+                            
                             ImGui::TableSetColumnIndex(3);
                             ImGui::TextColored(ImVec4(0.40f, 0.75f, 1.0f, 1.0f), "%s", e.LastConnected.empty() ? "-" : e.LastConnected.c_str());
 
-                            // Col 4: Last Removal
+                            
                             ImGui::TableSetColumnIndex(4);
                             ImGui::TextUnformatted(e.LastRemoved.empty() ? "" : e.LastRemoved.c_str());
 
-                            // Col 5: Capabilities
+                            
                             ImGui::TableSetColumnIndex(5);
                             ImGui::TextUnformatted(e.Capabilities.c_str());
 
-                            // Col 6: Connected
+                            
                             ImGui::TableSetColumnIndex(6);
                             if (e.IsConnected)
                                 ImGui::TextColored(ImVec4(0.2f, 0.85f, 0.2f, 1.0f), "Yes");
@@ -911,10 +922,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                             Row("Derniere connexion :",   e.LastConnected.c_str());
                             Row("Derniere deconnexion :", e.LastRemoved.c_str());
 
-                            ImGui::Dummy(ImVec2(0, 14));
-                            ImGui::Separator(); ImGui::Dummy(ImVec2(0, 6));
+                            ImGui::Dummy(ImVec2(0, 4));
+                            ImGui::Separator(); ImGui::Dummy(ImVec2(0, 4));
                             float bw = 100.0f;
-                            ImGui::SetCursorPosX((ImGui::GetWindowWidth() - bw) * 0.5f);
+                            ImGui::SetCursorPosX(230.0f);
+                            ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 8.0f);
                             ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.20f, 0.12f, 0.32f, 1.0f));
                             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.18f, 0.55f, 1.0f));
                             ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.65f, 0.35f, 1.00f, 1.0f));
@@ -934,11 +946,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             }
 
                     }
-        else if (current_nav == 3) // SERVICES
+        else if (current_nav == 3) 
         {
             ImGui::SetCursorPos(ImVec2(12.0f, navBottom + 8.0f));
             
-            // Bouton Refresh
+            
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.12f, 0.32f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.35f, 0.18f, 0.55f, 1.0f));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.65f, 0.35f, 1.00f, 1.0f));
@@ -982,23 +994,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                     } else if (entry.Status == "Not Found") {
                         ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), entry.Status.c_str());
                     } else {
-                        ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), entry.Status.c_str()); // Jaune pour Pending etc
+                        ImGui::TextColored(ImVec4(0.8f, 0.8f, 0.2f, 1.0f), entry.Status.c_str()); 
                     }
                 }
                 ImGui::EndTable();
             }
         }
-        else if (current_nav == 4) // OTHER
+        else if (current_nav == 4) 
         {
             ImGui::SetCursorPos(ImVec2(12.0f, navBottom + 12.0f));
             
-            // Calcul pour une grille de 4 colonnes
-            float availWidth = io.DisplaySize.x - 24.0f; // 12px de marge de chaque côté
-            int columns = 4;
+            
+            float availWidth = io.DisplaySize.x - 24.0f; 
+            int columns = 5;
             float spacing = 10.0f;
             float cardWidth = (availWidth - (spacing * (columns - 1))) / columns;
             
-            // Carte Everything
+            
             if (UI::DrawToolCard("Everything", "Everything search engine", cardWidth)) {
                 const char* path1 = "C:\\Program Files\\Everything\\Everything.exe";
                 const char* path2 = "C:\\Program Files (x86)\\Everything\\Everything.exe";
@@ -1026,7 +1038,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             
             ImGui::SameLine(0, spacing);
             
-            // Carte JournalTrace
+            
             if (UI::DrawToolCard("JournalTrace", "Parses NTFS journal entries", cardWidth)) {
                 const char* localPath = "JournalTrace.exe";
                 
@@ -1045,14 +1057,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         }
         else
         {
-            // Placeholder pour les autres onglets
+            
             float cx = ImGui::GetWindowSize().x / 2.0f - 100.0f;
             float cy = io.DisplaySize.y / 2.0f;
             ImGui::SetCursorPos(ImVec2(cx, cy));
             ImGui::TextDisabled("Coming soon...");
         }
 
-        // --- Logique du Modal de Téléchargement ---
+        
         if (isDownloading && !ImGui::IsPopupOpen("DownloadingPopup")) {
             ImGui::OpenPopup("DownloadingPopup");
         }
@@ -1073,7 +1085,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         ImGui::PopStyleVar(2);
         ImGui::PopStyleColor();
 
-        // Popup Boot Time
+        
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.12f, 0.12f, 0.12f, 1.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 8.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24.0f, 24.0f));
@@ -1084,7 +1096,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             ImGui::Separator();
             ImGui::Dummy(ImVec2(0, 10.0f));
             
-            // Calcul du temps de démarrage
+            
             ULONGLONG uptimeMs = GetTickCount64();
             FILETIME nowFt; GetSystemTimeAsFileTime(&nowFt);
             ULARGE_INTEGER now; now.LowPart = nowFt.dwLowDateTime; now.HighPart = nowFt.dwHighDateTime;
@@ -1099,7 +1111,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             ImGui::TextUnformatted("Your PC was last booted on:");
             ImGui::Dummy(ImVec2(0, 4.0f));
             
-            // Centrer le texte de la date
+            
             float textWidth = ImGui::CalcTextSize(buf).x;
             ImGui::SetCursorPosX((ImGui::GetWindowWidth() - textWidth) * 0.5f);
             ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 1.0f), buf);
@@ -1125,6 +1137,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         }
         ImGui::PopStyleVar(2);
         ImGui::PopStyleColor();
+
+        
 
         ImGui::End();
 
