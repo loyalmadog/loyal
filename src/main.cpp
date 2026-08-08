@@ -17,6 +17,8 @@
 #include "Parsers/PrefetchParser.h"
 #include "Parsers/ServicesParser.h"
 #include "Parsers/USBParser.h"
+#include "font_inter.h"
+#include "scripts_embedded.h"
 #include <vector>
 #include <algorithm>
 #include <thread>
@@ -37,6 +39,15 @@ void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 
+
+static std::string WriteScriptToTemp(const char* scriptContent, const char* scriptName) {
+    char tempDir[MAX_PATH];
+    GetTempPathA(MAX_PATH, tempDir);
+    std::string path = std::string(tempDir) + scriptName;
+    FILE* f = fopen(path.c_str(), "w");
+    if (f) { fputs(scriptContent, f); fclose(f); }
+    return path;
+}
 static bool g_IsDragging = false;
 static POINT g_DragOffset;
 
@@ -74,18 +85,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     
     
     ImFontConfig font_cfg;
-    const char* fontPath = "fonts/Inter-Regular.ttf";
-    FILE* f = fopen(fontPath, "rb");
-    if (f) {
-        fclose(f);
-        io.Fonts->AddFontFromFileTTF(fontPath, 15.0f, &font_cfg);
-    }
-    
-    if (io.Fonts->Fonts.empty()) {
-        font_cfg.SizePixels = 15.0f;
-        io.Fonts->AddFontDefault(&font_cfg);
-    }
+    font_cfg.FontDataOwnedByAtlas = false;
+    io.Fonts->AddFontFromMemoryTTF((void*)g_FontInterData, (int)g_FontInterSize, 15.0f, &font_cfg);
 
+
+    std::string g_FilelessScriptPath = WriteScriptToTemp(g_FilelessScript, "loyal_fileless.ps1");
+    std::string g_USNScriptPath = WriteScriptToTemp(g_USNCheckScript, "loyal_usn.ps1");
     UI::ApplyModernTheme();
 
     ImGui_ImplWin32_Init(hwnd);
@@ -281,7 +286,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             ImGui::SameLine(0, spacing);
             
             if (UI::DrawToolCard("Fileless", "Detect fileless via eventlog +\nmemdump", cardWidth)) {
-                ShellExecuteA(NULL, "open", "cmd.exe", "/k powershell.exe -ExecutionPolicy Bypass -File fileless.ps1", NULL, SW_SHOWNORMAL);
+                ShellExecuteA(NULL, "open", "cmd.exe", (std::string("/k powershell.exe -ExecutionPolicy Bypass -File \"") + g_FilelessScriptPath + "\"").c_str(), NULL, SW_SHOWNORMAL);
             }
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Detects fileless using powershell event logs and\nhas an option to analyze RAM, to detect possible\npe injects, shellcode, etc");
@@ -298,7 +303,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             ImGui::SameLine(0, spacing);
 
             if (UI::DrawToolCard("USN Journal", "Check USN Journal\nIntegrity", cardWidth)) {
-                ShellExecuteA(NULL, "open", "cmd.exe", "/c powershell.exe -ExecutionPolicy Bypass -File usn_check.ps1", NULL, SW_SHOWNORMAL);
+                ShellExecuteA(NULL, "open", "cmd.exe", (std::string("/c powershell.exe -ExecutionPolicy Bypass -File \"") + g_USNScriptPath + "\"").c_str(), NULL, SW_SHOWNORMAL);
             }
             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Verify if the USN Journal ($UsnJrnl:$J)\nhas been deleted and recreated after boot");
