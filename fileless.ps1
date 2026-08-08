@@ -1,11 +1,11 @@
 Write-Host "==============================================" -ForegroundColor Cyan
-Write-Host "     SSTool Fileless & Memdump Scanner        " -ForegroundColor Cyan
+Write-Host "     Fileless tool, By Loyal                  " -ForegroundColor Cyan
 Write-Host "==============================================" -ForegroundColor Cyan
 Write-Host ""
 
 $reportPath = Join-Path $PSScriptRoot "Fileless_Scan_Results.txt"
 $timestamp  = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-"SSTool Fileless & Memdump Scan Report" | Out-File -FilePath $reportPath -Encoding utf8
+"Fileless tool, By Loyal Scan Report" | Out-File -FilePath $reportPath -Encoding utf8
 "Generated: $timestamp" | Add-Content -Path $reportPath
 "=====================================" | Add-Content -Path $reportPath
 "" | Add-Content -Path $reportPath
