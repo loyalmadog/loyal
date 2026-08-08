@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 set(CMAKE_RC_COMPILER "C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/rc.exe")
-project(SSTool VERSION 1.0.0 LANGUAGES CXX)
+project(loyal VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -41,13 +41,13 @@ target_link_libraries(imgui_lib PUBLIC d3d11 d3dcompiler dwmapi)
 # Add our source files
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-add_executable(SSTool WIN32 ${SOURCES})
+add_executable(loyal WIN32 ${SOURCES})
 
 # Target Include Directories
-target_include_directories(SSTool PRIVATE src)
+target_include_directories(loyal PRIVATE src)
 
 # Link dependencies and Windows libraries
-target_link_libraries(SSTool PRIVATE 
+target_link_libraries(loyal PRIVATE 
     imgui_lib 
     spdlog::spdlog 
     advapi32 
@@ -61,30 +61,30 @@ target_link_libraries(SSTool PRIVATE
 
 # Demander les droits administrateur (obligatoire pour lire le Registre BAM)
 if (MSVC)
-    set_target_properties(SSTool PROPERTIES 
+    set_target_properties(loyal PROPERTIES 
         LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\""
     )
 endif()
 
 # Copier le dossier fonts dans le répertoire de sortie après la compilation
-add_custom_command(TARGET SSTool POST_BUILD
+add_custom_command(TARGET loyal POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/src/fonts"
-        "$<TARGET_FILE_DIR:SSTool>/fonts"
+        "$<TARGET_FILE_DIR:loyal>/fonts"
     COMMENT "Copie des polices dans le dossier de sortie..."
 )
 
-add_custom_command(TARGET SSTool POST_BUILD
+add_custom_command(TARGET loyal POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/fileless.ps1"
-        "$<TARGET_FILE_DIR:SSTool>/fileless.ps1"
+        "$<TARGET_FILE_DIR:loyal>/fileless.ps1"
     COMMENT "Copie de fileless.ps1 dans le dossier de sortie..."
 )
 
-add_custom_command(TARGET SSTool POST_BUILD
+add_custom_command(TARGET loyal POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/usn_check.ps1"
-        "$<TARGET_FILE_DIR:SSTool>/usn_check.ps1"
+        "$<TARGET_FILE_DIR:loyal>/usn_check.ps1"
     COMMENT "Copie de usn_check.ps1 dans le dossier de sortie..."
 )
 
