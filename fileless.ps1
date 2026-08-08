@@ -95,8 +95,8 @@ $MaliciousPatterns = @(
     [regex]'(?i)\[Runtime\.InteropServices\.Marshal\]::Copy',
     [regex]'(?i)\$shellcode\s*=|0x90,0x90|msfvenom|meterpreter',
     [regex]'(?i)amsiInitFailed|AmsiScanBuffer|amsiContext',
-    [regex]'(?i)DownloadString\s*\(\s*[''"]http',
-    [regex]'(?i)DownloadFile\s*\(\s*[''"]http.*\.(exe|ps1|bat|dll|bin)',
+    [regex]'(?i)DownloadString\s*\(\s*[''""]http',
+    [regex]'(?i)DownloadFile\s*\(\s*[''""]http.*\.(exe|ps1|bat|dll|bin)',
     [regex]'(?i)-nop\s+-w\s+hidden\s+-enc',
     [regex]'(?i)-windowstyle\s+hidden\s+.*-encodedcommand',
     [regex]'(?i)schtasks.*\/f.*cmd.*powershell.*-enc',
@@ -177,7 +177,7 @@ $analyzeRam = Read-Host
 if ($analyzeRam -match "^[Yy]") {
     Write-Host "`n[*] Loading Win32 memory API..." -ForegroundColor Cyan
 
-    $MemAPI = Add-Type -PassThru -TypeDefinition @"
+    Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 
@@ -198,20 +198,27 @@ public class MemAPI {
     [DllImport("kernel32.dll")] public static extern int VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MEMORY_BASIC_INFORMATION lpBuffer, uint dwLength);
     [DllImport("kernel32.dll")] public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int nSize, out int lpNumberOfBytesRead);
 }
-"@
+"@ -ErrorAction SilentlyContinue
 
-    $PROCESS_VM_READ     = 0x0010
-    $PROCESS_QUERY_INFO  = 0x0400
-    $MEM_COMMIT          = 0x1000
-    $MEM_PRIVATE         = 0x20000
-    $PAGE_EXECUTE            = 0x10
-    $PAGE_EXECUTE_READ       = 0x20
-    $PAGE_EXECUTE_READWRITE  = 0x40
-    $PAGE_EXECUTE_WRITECOPY  = 0x80
+    $PROCESS_VM_READ        = 0x0010
+    $PROCESS_QUERY_INFO     = 0x0400
+    $MEM_COMMIT             = 0x1000
+    $MEM_PRIVATE            = 0x20000
+    $PAGE_EXECUTE           = 0x10
+    $PAGE_EXECUTE_READ      = 0x20
+    $PAGE_EXECUTE_READWRITE = 0x40
+    $PAGE_EXECUTE_WRITECOPY = 0x80
 
     $execProtections = @($PAGE_EXECUTE, $PAGE_EXECUTE_READ, $PAGE_EXECUTE_READWRITE, $PAGE_EXECUTE_WRITECOPY)
 
-    $selfPid = $PID
+    $JITProcesses = @(
+        'chrome','msedge','firefox','opera','brave','vivaldi','safari',
+        'node','electron','code','vscode','discord','slack','teams','spotify',
+        'dotnet','w3wp','iisexpress','powershell','pwsh','java','javaw',
+        'mono','unity','unityhub','luajit','deno','bun'
+    )
+
+    $selfPid  = $PID
     $processes = Get-Process | Where-Object { $_.Id -ne $selfPid -and $_.Id -ne 0 -and $_.Id -ne 4 }
 
     Write-Host "[*] Scanning $($processes.Count) processes for unbacked executable memory..." -ForegroundColor Yellow
@@ -225,27 +232,47 @@ public class MemAPI {
         $hProcess = [MemAPI]::OpenProcess($PROCESS_VM_READ -bor $PROCESS_QUERY_INFO, $false, $proc.Id)
         if ($hProcess -eq [IntPtr]::Zero) { continue }
 
+        $isJIT   = $JITProcesses -contains $proc.ProcessName.ToLower()
         $address = [IntPtr]::Zero
-        $mbi = New-Object MemAPI+MEMORY_BASIC_INFORMATION
+        $mbi     = New-Object MemAPI+MEMORY_BASIC_INFORMATION
         $mbiSize = [Runtime.InteropServices.Marshal]::SizeOf($mbi)
 
         while ([MemAPI]::VirtualQueryEx($hProcess, $address, [ref]$mbi, [uint32]$mbiSize) -ne 0) {
-            $isCommitted = ($mbi.State -eq $MEM_COMMIT)
-            $isPrivate   = ($mbi.Type -eq $MEM_PRIVATE)
+            $isCommitted = ($mbi.State   -eq $MEM_COMMIT)
+            $isPrivate   = ($mbi.Type    -eq $MEM_PRIVATE)
             $isExec      = $execProtections -contains $mbi.Protect
+            $isRWX       = ($mbi.Protect -eq $PAGE_EXECUTE_READWRITE)
 
             if ($isCommitted -and $isPrivate -and $isExec) {
-                $isMZ    = $false
-                $isRWX   = ($mbi.Protect -eq $PAGE_EXECUTE_READWRITE)
-                $readBuf = New-Object byte[] 2
+                $hasMZ = $false
+                $hasPE = $false
+
+                $buf64     = New-Object byte[] 64
                 $bytesRead = 0
-                if ([MemAPI]::ReadProcessMemory($hProcess, $mbi.BaseAddress, $readBuf, 2, [ref]$bytesRead)) {
-                    if ($bytesRead -ge 2 -and $readBuf[0] -eq 0x4D -and $readBuf[1] -eq 0x5A) {
-                        $isMZ = $true
+                if ([MemAPI]::ReadProcessMemory($hProcess, $mbi.BaseAddress, $buf64, 64, [ref]$bytesRead)) {
+                    if ($bytesRead -ge 2 -and $buf64[0] -eq 0x4D -and $buf64[1] -eq 0x5A) {
+                        $hasMZ = $true
+
+                        if ($bytesRead -ge 0x40) {
+                            $eLfanew = [BitConverter]::ToInt32($buf64, 0x3C)
+                            if ($eLfanew -gt 0 -and $eLfanew -lt 0x400) {
+                                $peSig       = New-Object byte[] 4
+                                $peBytesRead = 0
+                                $peAddr      = [IntPtr]($mbi.BaseAddress.ToInt64() + $eLfanew)
+                                if ([MemAPI]::ReadProcessMemory($hProcess, $peAddr, $peSig, 4, [ref]$peBytesRead)) {
+                                    if ($peBytesRead -ge 4 -and $peSig[0] -eq 0x50 -and $peSig[1] -eq 0x45 -and $peSig[2] -eq 0x00 -and $peSig[3] -eq 0x00) {
+                                        $hasPE = $true
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                if ($isMZ -or $isRWX) {
+                $isConfirmedPE   = $hasMZ -and $hasPE
+                $isSuspiciousRWX = $isRWX -and -not $isJIT
+
+                if ($isConfirmedPE -or $isSuspiciousRWX) {
                     $findingsCount++
                     $addrHex  = "0x{0:X}" -f $mbi.BaseAddress.ToInt64()
                     $sizeKB   = [math]::Round($mbi.RegionSize.ToInt64() / 1KB, 1)
@@ -256,7 +283,11 @@ public class MemAPI {
                         0x80 { "PAGE_EXECUTE_WRITECOPY" }
                         default { "0x{0:X}" -f $mbi.Protect }
                     }
-                    $finding = if ($isMZ) { "PE INJECTION DETECTED (MZ header in unbacked memory)" } else { "Suspicious RWX region (possible shellcode / JIT)" }
+                    $finding = if ($isConfirmedPE) {
+                        "PE INJECTION CONFIRMED (MZ + PE`\\0`\\0 signature in unbacked private memory)"
+                    } else {
+                        "Suspicious RWX region in non-JIT process (possible shellcode)"
+                    }
                     $line = "[!] $finding`n    Process : $($proc.ProcessName) (PID $($proc.Id))`n    Address : $addrHex`n    Size    : $sizeKB KB`n    Protect : $protName"
                     Write-Host $line -ForegroundColor Red
                     Add-Content -Path $reportPath -Value $line
@@ -265,7 +296,7 @@ public class MemAPI {
             }
 
             try {
-                $next = $mbi.BaseAddress.ToInt64() + $mbi.RegionSize.ToInt64()
+                $next    = $mbi.BaseAddress.ToInt64() + $mbi.RegionSize.ToInt64()
                 $address = [IntPtr]$next
             } catch { break }
             if ($address.ToInt64() -le 0) { break }
