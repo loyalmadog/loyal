@@ -62,7 +62,7 @@ target_link_libraries(loyal PRIVATE
 # Demander les droits administrateur (obligatoire pour lire le Registre BAM)
 if (MSVC)
     set_target_properties(loyal PROPERTIES 
-        LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\""
+        LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\" /PDBALTPATH:none"
     )
 endif()
 
