@@ -1,0 +1,6 @@
+# Treat all .h files as C++ for GitHub language statistics
+*.h linguist-language=cpp
+
+# Treat the embedded font file as vendored (generated data) so it doesn't skew stats
+src/font_inter.h linguist-vendored
+src/scripts_embedded.h linguist-vendored
