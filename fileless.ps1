@@ -175,14 +175,112 @@ Write-Host "Do you want to analyze RAM to detect PE injection / shellcode? (Y/N)
 $analyzeRam = Read-Host
 
 if ($analyzeRam -match "^[Yy]") {
-    Write-Host "`n[*] Initializing memory dump analysis..." -ForegroundColor Cyan
-    Start-Sleep -Seconds 1
-    Write-Host "[-] Loading Win32 API memory structures..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 1
-    Write-Host "[-] Scanning for unbacked executable memory regions (PAGE_EXECUTE_READWRITE)..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 2
-    Write-Host "[+] Memory scan completed. No injected PE or active shellcode detected." -ForegroundColor Green
-    Add-Content -Path $reportPath -Value "`n[+] Memory scan completed. No injected PE or active shellcode detected."
+    Write-Host "`n[*] Loading Win32 memory API..." -ForegroundColor Cyan
+
+    $MemAPI = Add-Type -PassThru -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public class MemAPI {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MEMORY_BASIC_INFORMATION {
+        public IntPtr BaseAddress;
+        public IntPtr AllocationBase;
+        public uint   AllocationProtect;
+        public IntPtr RegionSize;
+        public uint   State;
+        public uint   Protect;
+        public uint   Type;
+    }
+
+    [DllImport("kernel32.dll")] public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+    [DllImport("kernel32.dll")] public static extern bool CloseHandle(IntPtr hObject);
+    [DllImport("kernel32.dll")] public static extern int VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MEMORY_BASIC_INFORMATION lpBuffer, uint dwLength);
+    [DllImport("kernel32.dll")] public static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int nSize, out int lpNumberOfBytesRead);
+}
+"@
+
+    $PROCESS_VM_READ     = 0x0010
+    $PROCESS_QUERY_INFO  = 0x0400
+    $MEM_COMMIT          = 0x1000
+    $MEM_PRIVATE         = 0x20000
+    $PAGE_EXECUTE            = 0x10
+    $PAGE_EXECUTE_READ       = 0x20
+    $PAGE_EXECUTE_READWRITE  = 0x40
+    $PAGE_EXECUTE_WRITECOPY  = 0x80
+
+    $execProtections = @($PAGE_EXECUTE, $PAGE_EXECUTE_READ, $PAGE_EXECUTE_READWRITE, $PAGE_EXECUTE_WRITECOPY)
+
+    $selfPid = $PID
+    $processes = Get-Process | Where-Object { $_.Id -ne $selfPid -and $_.Id -ne 0 -and $_.Id -ne 4 }
+
+    Write-Host "[*] Scanning $($processes.Count) processes for unbacked executable memory..." -ForegroundColor Yellow
+    "" | Add-Content -Path $reportPath
+    "[RAM MEMORY SCAN]" | Add-Content -Path $reportPath
+    "------------------" | Add-Content -Path $reportPath
+
+    $findingsCount = 0
+
+    foreach ($proc in $processes) {
+        $hProcess = [MemAPI]::OpenProcess($PROCESS_VM_READ -bor $PROCESS_QUERY_INFO, $false, $proc.Id)
+        if ($hProcess -eq [IntPtr]::Zero) { continue }
+
+        $address = [IntPtr]::Zero
+        $mbi = New-Object MemAPI+MEMORY_BASIC_INFORMATION
+        $mbiSize = [Runtime.InteropServices.Marshal]::SizeOf($mbi)
+
+        while ([MemAPI]::VirtualQueryEx($hProcess, $address, [ref]$mbi, [uint32]$mbiSize) -ne 0) {
+            $isCommitted = ($mbi.State -eq $MEM_COMMIT)
+            $isPrivate   = ($mbi.Type -eq $MEM_PRIVATE)
+            $isExec      = $execProtections -contains $mbi.Protect
+
+            if ($isCommitted -and $isPrivate -and $isExec) {
+                $isMZ    = $false
+                $isRWX   = ($mbi.Protect -eq $PAGE_EXECUTE_READWRITE)
+                $readBuf = New-Object byte[] 2
+                $bytesRead = 0
+                if ([MemAPI]::ReadProcessMemory($hProcess, $mbi.BaseAddress, $readBuf, 2, [ref]$bytesRead)) {
+                    if ($bytesRead -ge 2 -and $readBuf[0] -eq 0x4D -and $readBuf[1] -eq 0x5A) {
+                        $isMZ = $true
+                    }
+                }
+
+                if ($isMZ -or $isRWX) {
+                    $findingsCount++
+                    $addrHex  = "0x{0:X}" -f $mbi.BaseAddress.ToInt64()
+                    $sizeKB   = [math]::Round($mbi.RegionSize.ToInt64() / 1KB, 1)
+                    $protName = switch ($mbi.Protect) {
+                        0x10 { "PAGE_EXECUTE" }
+                        0x20 { "PAGE_EXECUTE_READ" }
+                        0x40 { "PAGE_EXECUTE_READWRITE (RWX)" }
+                        0x80 { "PAGE_EXECUTE_WRITECOPY" }
+                        default { "0x{0:X}" -f $mbi.Protect }
+                    }
+                    $finding = if ($isMZ) { "PE INJECTION DETECTED (MZ header in unbacked memory)" } else { "Suspicious RWX region (possible shellcode / JIT)" }
+                    $line = "[!] $finding`n    Process : $($proc.ProcessName) (PID $($proc.Id))`n    Address : $addrHex`n    Size    : $sizeKB KB`n    Protect : $protName"
+                    Write-Host $line -ForegroundColor Red
+                    Add-Content -Path $reportPath -Value $line
+                    Add-Content -Path $reportPath -Value ""
+                }
+            }
+
+            try {
+                $next = $mbi.BaseAddress.ToInt64() + $mbi.RegionSize.ToInt64()
+                $address = [IntPtr]$next
+            } catch { break }
+            if ($address.ToInt64() -le 0) { break }
+        }
+
+        [MemAPI]::CloseHandle($hProcess) | Out-Null
+    }
+
+    if ($findingsCount -eq 0) {
+        Write-Host "[+] Memory scan complete. No PE injection or shellcode detected." -ForegroundColor Green
+        Add-Content -Path $reportPath -Value "[+] Memory scan complete. No PE injection or shellcode detected."
+    } else {
+        Write-Host "`n[!] $findingsCount suspicious memory region(s) found. See report for details." -ForegroundColor Red
+        Add-Content -Path $reportPath -Value "[!] $findingsCount suspicious memory region(s) found."
+    }
 } else {
     Write-Host "[*] RAM analysis skipped."
     Add-Content -Path $reportPath -Value "`n[*] RAM analysis skipped."
