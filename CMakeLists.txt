@@ -5,10 +5,10 @@ project(loyal VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Setup FetchContent for dependencies
+
 include(FetchContent)
 
-# 1. spdlog
+
 FetchContent_Declare(
     spdlog
     GIT_REPOSITORY https://github.com/gabime/spdlog.git
@@ -16,7 +16,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 
-# 2. ImGui
+
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
@@ -24,7 +24,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 
-# Create a library for ImGui since it doesn't provide a CMakeLists.txt natively that builds what we need easily
+
 set(IMGUI_DIR ${imgui_SOURCE_DIR})
 add_library(imgui_lib STATIC
     ${IMGUI_DIR}/imgui.cpp
@@ -38,15 +38,15 @@ add_library(imgui_lib STATIC
 target_include_directories(imgui_lib PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 target_link_libraries(imgui_lib PUBLIC d3d11 d3dcompiler dwmapi)
 
-# Add our source files
+
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 add_executable(loyal WIN32 ${SOURCES})
 
-# Target Include Directories
+
 target_include_directories(loyal PRIVATE src)
 
-# Link dependencies and Windows libraries
+
 target_link_libraries(loyal PRIVATE 
     imgui_lib 
     spdlog::spdlog 
@@ -59,14 +59,14 @@ target_link_libraries(loyal PRIVATE
     setupapi
 )
 
-# Demander les droits administrateur (obligatoire pour lire le Registre BAM)
+
 if (MSVC)
     set_target_properties(loyal PROPERTIES 
         LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\" /PDBALTPATH:none"
     )
 endif()
 
-# Copier le dossier fonts dans le répertoire de sortie après la compilation
+
 add_custom_command(TARGET loyal POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/src/fonts"
@@ -89,7 +89,6 @@ add_custom_command(TARGET loyal POST_BUILD
 )
 
 
-# Touch for CMake re-run
-# Force UAC update
+
 
 
